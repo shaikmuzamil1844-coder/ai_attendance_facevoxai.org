@@ -1,0 +1,36 @@
+{
+  "name": "facevoxai-backend",
+  "version": "2.0.0",
+  "description": "FaceVoxAI Production REST API — Intelligent Attendance & Academic Analytics Platform",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "seed:admin": "node src/scripts/initDb.js",
+    "test": "node tests/backend.test.js",
+    "test:ci": "TEST_API_URL=http://localhost:4000 node tests/backend.test.js"
+  },
+  "keywords": [
+    "attendance",
+    "facevoxai",
+    "biometric",
+    "api"
+  ],
+  "author": "FaceVoxAI Team",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.20.0",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.12.1",
+    "nodemailer": "^10.1.0",
+    "pg": "^8.23.0",
+    "socket.io": "^4.8.3",
+    "zod": "^4.6.5"
+  }
+}

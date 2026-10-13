@@ -1,0 +1,86 @@
+# ================================================================
+# FaceVoxAI Production — docker-compose.yml
+# Orchestrates all 3 services: backend, ai-service, frontend
+# Usage: docker-compose up --build
+# ================================================================
+
+
+services:
+
+  # ─── Node.js REST API ────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: facevoxai-backend
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV:              production
+      PORT:                  4000
+      DATABASE_URL:          ${DATABASE_URL}
+      JWT_SECRET:            ${JWT_SECRET}
+      JWT_REFRESH_SECRET:    ${JWT_REFRESH_SECRET}
+      JWT_EXPIRES_IN:        ${JWT_EXPIRES_IN:-15m}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      FRONTEND_ORIGIN:       ${FRONTEND_ORIGIN:-http://localhost:5173}
+      AI_SERVICE_URL:        http://ai-service:8000
+      INTERNAL_API_SECRET:   ${INTERNAL_API_SECRET}
+      SUPABASE_URL:          ${SUPABASE_URL}
+      SUPABASE_ANON_KEY:     ${SUPABASE_ANON_KEY}
+      SUPABASE_SERVICE_KEY:  ${SUPABASE_SERVICE_KEY}
+      STORAGE_BUCKET:        ${STORAGE_BUCKET:-facevoxai-uploads}
+      RATE_LIMIT_WINDOW_MS:  ${RATE_LIMIT_WINDOW_MS:-60000}
+      RATE_LIMIT_MAX:        ${RATE_LIMIT_MAX:-200}
+    depends_on:
+      - ai-service
+    networks:
+      - facevoxai-net
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:4000/api/health', r => process.exit(r.statusCode===200?0:1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ─── Python AI Microservice ──────────────────────────────────
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    container_name: facevoxai-ai
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      INTERNAL_API_SECRET:          ${INTERNAL_API_SECRET}
+      FACE_DISTANCE_THRESHOLD:      ${FACE_DISTANCE_THRESHOLD:-0.58}
+      VOICE_SIMILARITY_THRESHOLD:   ${VOICE_SIMILARITY_THRESHOLD:-0.68}
+      LIVENESS_REQUIRED:            ${LIVENESS_REQUIRED:-true}
+      LIVENESS_CONFIDENCE_THRESHOLD: ${LIVENESS_CONFIDENCE_THRESHOLD:-0.50}
+      FRONTEND_ORIGIN:              ${FRONTEND_ORIGIN:-http://localhost:5173}
+    networks:
+      - facevoxai-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+
+  # ─── React Frontend (Production Build served via nginx) ──────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: facevoxai-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - facevoxai-net
+
+networks:
+  facevoxai-net:
+    driver: bridge
