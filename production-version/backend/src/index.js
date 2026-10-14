@@ -22,6 +22,7 @@ const analyticsRoutes  = require('./routes/analytics');
 
 // ─────────────────────────────────────────────────────────────────────────────
 const app    = express();
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 
 // ─── Flexible CORS Origin Resolver ──────────────────────────────────────────
