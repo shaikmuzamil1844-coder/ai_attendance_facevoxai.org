@@ -1,8 +1,10 @@
 // pages/SubjectsPage.jsx — Manage academic subjects & faculty assignment
 import { useEffect, useState } from 'react';
 import { api } from '../services/client';
+import { useTheme } from '../context/ThemeContext';
 
 export default function SubjectsPage() {
+  const { grouped } = useTheme();
   const [subjects, setSubjects] = useState([]);
   const [courses, setCourses] = useState([]);
   const [semesters, setSemesters] = useState([]);
@@ -128,7 +130,7 @@ export default function SubjectsPage() {
             + Create Subject
           </button>
         </div>
-      ) : (
+      ) : grouped ? (
         <div className="grid-3">
           {subjects.map((sub) => (
             <div key={sub.id} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -164,6 +166,50 @@ export default function SubjectsPage() {
               </div>
             </div>
           ))}
+        </div>
+      ) : (
+        <div className="table-wrap card" style={{ padding: 0 }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Subject Name</th>
+                <th>Course</th>
+                <th>Semester</th>
+                <th>Credits</th>
+                <th>Students</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {subjects.map((sub) => (
+                <tr key={sub.id}>
+                  <td>
+                    <span className="badge badge-gold">{sub.code}</span>
+                  </td>
+                  <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{sub.name}</td>
+                  <td>📚 {sub.course_name}</td>
+                  <td>📅 {sub.semester_name || '—'}</td>
+                  <td>
+                    <span className="badge badge-info">{sub.credits} Credits</span>
+                  </td>
+                  <td>🎓 {sub.student_count || 0}</td>
+                  <td>
+                    <button
+                      className="btn btn-outline btn-sm"
+                      onClick={() => {
+                        setAssigningSubject(sub);
+                        setAssignError('');
+                      }}
+                      style={{ fontSize: 12, padding: '3px 10px' }}
+                    >
+                      👩‍🏫 Assign
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 

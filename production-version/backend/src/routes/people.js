@@ -284,29 +284,106 @@ router.delete('/students/:id', requireAuth, adminOnly, asyncWrap(async (req, res
   res.json({ message: 'Student deactivated.' });
 }));
 
-// POST /api/students/:id/enroll — enroll student in a subject
-router.post('/students/:id/enroll', requireAuth, adminOrHod,
+// GET /api/students/:id/available-subjects — list all subjects with is_enrolled status
+router.get('/students/:id/available-subjects', requireAuth, anyRole, asyncWrap(async (req, res) => {
+  if (req.user.role === 'student' && req.user.studentId !== req.params.id) {
+    throw createError(403, 'Access denied.');
+  }
+
+  const { rows } = await query(
+    `SELECT sub.id, sub.code, sub.name, sub.credits,
+            c.id AS course_id, c.code AS course_code, c.name AS course_name,
+            sem.name AS semester_name,
+            f.name AS faculty_name,
+            CASE WHEN ss.student_id IS NOT NULL THEN true ELSE false END AS is_enrolled
+     FROM subjects sub
+     JOIN courses c ON c.id = sub.course_id
+     LEFT JOIN semesters sem ON sem.id = sub.semester_id
+     LEFT JOIN faculty_subjects fs ON fs.subject_id = sub.id
+     LEFT JOIN faculty f ON f.id = fs.faculty_id
+     LEFT JOIN student_subjects ss ON ss.subject_id = sub.id AND ss.student_id = $1
+     WHERE sub.is_active = true
+     ORDER BY is_enrolled DESC, sub.code ASC`,
+    [req.params.id]
+  );
+  res.json(rows);
+}));
+
+// POST /api/students/:id/enroll — enroll student in subject(s) by subjectId, subjectCode, or courseId
+router.post('/students/:id/enroll', requireAuth, anyRole,
   asyncWrap(async (req, res) => {
-    const { subjectId } = req.body;
-    if (!subjectId) throw createError(400, 'subjectId is required.');
-    await query(
-      `INSERT INTO student_subjects (student_id, subject_id)
-       VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-      [req.params.id, subjectId]
-    );
-    res.json({ message: 'Student enrolled in subject.' });
+    // Permission check: admin, hod, or student themselves
+    if (req.user.role === 'student' && req.user.studentId !== req.params.id) {
+      throw createError(403, 'You do not have permission to enroll for this student.');
+    }
+
+    const { subjectId, subjectCode, courseId } = req.body;
+    let targetSubjectIds = [];
+    let subjectLabels = [];
+
+    if (subjectId) {
+      targetSubjectIds = [subjectId];
+      const s = await query(`SELECT name, code FROM subjects WHERE id = $1`, [subjectId]);
+      if (s.rows[0]) subjectLabels.push(`${s.rows[0].code} - ${s.rows[0].name}`);
+    } else if (subjectCode) {
+      const codeClean = subjectCode.trim();
+      const s = await query(
+        `SELECT id, name, code FROM subjects WHERE UPPER(TRIM(code)) = UPPER($1) AND is_active = true`,
+        [codeClean]
+      );
+      if (s.rows.length === 0) {
+        throw createError(404, `No active subject found with code '${codeClean}'.`);
+      }
+      targetSubjectIds = s.rows.map(r => r.id);
+      subjectLabels = s.rows.map(r => `${r.code} - ${r.name}`);
+    } else if (courseId) {
+      const cClean = courseId.trim();
+      const s = await query(
+        `SELECT sub.id, sub.name, sub.code
+         FROM subjects sub
+         JOIN courses c ON c.id = sub.course_id
+         WHERE (c.id::text = $1 OR UPPER(TRIM(c.code)) = UPPER($1) OR UPPER(TRIM(c.name)) ILIKE $2)
+           AND sub.is_active = true`,
+        [cClean, `%${cClean}%`]
+      );
+      if (s.rows.length === 0) {
+        throw createError(404, `No subjects found for course '${cClean}'.`);
+      }
+      targetSubjectIds = s.rows.map(r => r.id);
+      subjectLabels = s.rows.map(r => `${r.code} - ${r.name}`);
+    } else {
+      throw createError(400, 'Please provide subjectId, subjectCode, or courseId to enroll.');
+    }
+
+    // Insert all matched subjects
+    for (const sId of targetSubjectIds) {
+      await query(
+        `INSERT INTO student_subjects (student_id, subject_id)
+         VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+        [req.params.id, sId]
+      );
+    }
+
+    res.json({
+      success: true,
+      message: `Enrolled successfully: ${subjectLabels.join(', ')}`,
+      enrolledCount: targetSubjectIds.length,
+    });
   })
 );
 
-// DELETE /api/students/:id/enroll — unenroll
-router.delete('/students/:id/enroll', requireAuth, adminOrHod, asyncWrap(async (req, res) => {
+// DELETE /api/students/:id/enroll — unenroll student from a subject
+router.delete('/students/:id/enroll', requireAuth, anyRole, asyncWrap(async (req, res) => {
+  if (req.user.role === 'student' && req.user.studentId !== req.params.id) {
+    throw createError(403, 'Access denied.');
+  }
   const { subjectId } = req.body;
   if (!subjectId) throw createError(400, 'subjectId is required.');
   await query(
     `DELETE FROM student_subjects WHERE student_id = $1 AND subject_id = $2`,
     [req.params.id, subjectId]
   );
-  res.json({ message: 'Student unenrolled from subject.' });
+  res.json({ success: true, message: 'Student unenrolled from subject.' });
 }));
 
 // GET /api/students/:id/attendance-summary — summary for student portal

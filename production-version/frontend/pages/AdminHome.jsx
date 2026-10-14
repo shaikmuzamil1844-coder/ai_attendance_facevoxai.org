@@ -143,7 +143,7 @@ export default function AdminHome() {
         <h3 style={{ marginBottom: 16, fontSize: 16, fontWeight: 700 }}>⚙️ System &amp; Microservices Health</h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {[
-            { label: 'REST API (Node.js Express)',   status: 'Operational', url: 'http://localhost:4000/api/health' },
+            { label: 'REST API (Node.js Express)',   status: 'Operational', url: '/api/health' },
             { label: 'AI Microservice (FastAPI)',    status: 'Operational', url: 'http://localhost:8000/docs' },
             { label: 'Supabase Cloud Database',      status: 'Connected',   url: 'PostgreSQL with RLS & RBAC' },
             { label: 'pgvector Multi-Modal Engine',  status: 'Active',      url: 'HNSW Cosine Index (128-D & 256-D)' },

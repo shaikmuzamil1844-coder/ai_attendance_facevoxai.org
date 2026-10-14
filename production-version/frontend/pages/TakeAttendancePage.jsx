@@ -12,7 +12,9 @@ import { io } from 'socket.io-client';
 import { api } from '../services/client';
 import { AudioRecorder } from '../services/audioRecorder';
 
-const BACKEND_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:4000';
+const BACKEND_URL = import.meta.env.VITE_API_URL 
+  ? import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '') 
+  : (typeof window !== 'undefined' && window.location.port === '5173' ? 'http://localhost:4000' : (typeof window !== 'undefined' ? window.location.origin : ''));
 
 export default function TakeAttendancePage() {
   const [subjects,    setSubjects]    = useState([]);

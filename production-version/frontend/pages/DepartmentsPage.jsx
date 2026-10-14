@@ -1,8 +1,10 @@
 // pages/DepartmentsPage.jsx — Manage institution departments
 import { useEffect, useState } from 'react';
 import { api } from '../services/client';
+import { useTheme } from '../context/ThemeContext';
 
 export default function DepartmentsPage() {
+  const { grouped } = useTheme();
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -98,7 +100,7 @@ export default function DepartmentsPage() {
             + Add Department
           </button>
         </div>
-      ) : (
+      ) : grouped ? (
         <div className="grid-3">
           {filtered.map((dept) => (
             <div key={dept.id} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -127,6 +129,41 @@ export default function DepartmentsPage() {
               </div>
             </div>
           ))}
+        </div>
+      ) : (
+        <div className="table-wrap card" style={{ padding: 0 }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Department Name</th>
+                <th>Head of Department</th>
+                <th>Courses</th>
+                <th>Faculty</th>
+                <th>Students</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((dept) => (
+                <tr key={dept.id}>
+                  <td>
+                    <span className="badge badge-gold">{dept.code}</span>
+                  </td>
+                  <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{dept.name}</td>
+                  <td>{dept.hod_name || <span className="text-muted">Not assigned</span>}</td>
+                  <td>📚 {dept.course_count || 0}</td>
+                  <td>👩‍🏫 {dept.faculty_count || 0}</td>
+                  <td>🎓 {dept.student_count || 0}</td>
+                  <td>
+                    <span className={`badge ${dept.is_active ? 'badge-success' : 'badge-muted'}`}>
+                      {dept.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 

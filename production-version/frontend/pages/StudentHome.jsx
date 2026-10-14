@@ -1,5 +1,6 @@
 // pages/StudentHome.jsx — Student Portal with Academic Telemetry, Timetable, Teachers, & Biometrics
 import { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { api } from '../services/client';
 import { AudioRecorder } from '../services/audioRecorder';
@@ -16,6 +17,7 @@ const DAY_LABELS = {
 
 export default function StudentHome() {
   const { user } = useAuth();
+  const location = useLocation();
   const [profile, setProfile] = useState(null);
   const [summary, setSummary] = useState([]);
   const [history, setHistory] = useState([]);
@@ -23,8 +25,22 @@ export default function StudentHome() {
   const [timetable, setTimetable] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Active view tab: 'overview' | 'subjects' | 'timetable' | 'faculty' | 'history'
-  const [activeTab, setActiveTab] = useState('overview');
+  // Active view tab: 'overview' | 'subjects' | 'enroll' | 'timetable' | 'faculty' | 'history'
+  const [activeTab, setActiveTab] = useState(() => {
+    return location.pathname.includes('/enroll') ? 'enroll' : 'overview';
+  });
+
+  // Subject Enrollment State
+  const [availableSubjects, setAvailableSubjects] = useState([]);
+  const [availableLoading, setAvailableLoading] = useState(false);
+  const [codeQuery, setCodeQuery] = useState('');
+  const [codeLoading, setCodeLoading] = useState(false);
+  const [codeMsg, setCodeMsg] = useState('');
+  const [codeError, setCodeError] = useState('');
+  const [catalogSearch, setCatalogSearch] = useState('');
+  const [enrollingId, setEnrollingId] = useState(null);
+  const [actionSuccess, setActionSuccess] = useState('');
+  const [actionError, setActionError] = useState('');
 
   // Modals for Biometrics
   const [showFaceModal, setShowFaceModal] = useState(false);
@@ -76,9 +92,83 @@ export default function StudentHome() {
     }
   };
 
+  const loadAvailableSubjects = async () => {
+    if (!studentId) return;
+    try {
+      setAvailableLoading(true);
+      const res = await api.get(`/students/${studentId}/available-subjects`);
+      setAvailableSubjects(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error('Failed to load available subjects:', err);
+    } finally {
+      setAvailableLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadData();
+    loadAvailableSubjects();
   }, [studentId]);
+
+  useEffect(() => {
+    if (activeTab === 'enroll') {
+      loadAvailableSubjects();
+    }
+  }, [activeTab]);
+
+  const handleEnrollByCode = async (e) => {
+    e?.preventDefault();
+    if (!codeQuery.trim()) return;
+    setCodeLoading(true);
+    setCodeError('');
+    setCodeMsg('');
+    setActionSuccess('');
+    setActionError('');
+    try {
+      const res = await api.post(`/students/${studentId}/enroll`, {
+        subjectCode: codeQuery.trim(),
+        courseId: codeQuery.trim(),
+      });
+      setCodeMsg(res.data?.message || 'Enrolled successfully!');
+      setCodeQuery('');
+      await Promise.all([loadData(), loadAvailableSubjects()]);
+    } catch (err) {
+      setCodeError(err.response?.data?.error || 'Failed to enroll with this code/ID. Please verify.');
+    } finally {
+      setCodeLoading(false);
+    }
+  };
+
+  const handleEnrollSubject = async (subId) => {
+    setEnrollingId(subId);
+    setActionSuccess('');
+    setActionError('');
+    try {
+      const res = await api.post(`/students/${studentId}/enroll`, { subjectId: subId });
+      setActionSuccess(res.data?.message || 'Subject enrolled successfully!');
+      await Promise.all([loadData(), loadAvailableSubjects()]);
+    } catch (err) {
+      setActionError(err.response?.data?.error || 'Failed to enroll in subject.');
+    } finally {
+      setEnrollingId(null);
+    }
+  };
+
+  const handleUnenrollSubject = async (subId) => {
+    if (!window.confirm('Are you sure you want to drop/unenroll from this subject?')) return;
+    setEnrollingId(subId);
+    setActionSuccess('');
+    setActionError('');
+    try {
+      await api.delete(`/students/${studentId}/enroll`, { data: { subjectId: subId } });
+      setActionSuccess('Subject unenrolled successfully.');
+      await Promise.all([loadData(), loadAvailableSubjects()]);
+    } catch (err) {
+      setActionError(err.response?.data?.error || 'Failed to drop subject.');
+    } finally {
+      setEnrollingId(null);
+    }
+  };
 
   // ── Camera Controls for Face Enrollment ─────────────────────────────────────
   const startCamera = async () => {
@@ -207,7 +297,15 @@ export default function StudentHome() {
           <p className="page-subtitle">Track your attendance progress, class timetable, assigned faculty, and biometric identity.</p>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <span className="badge badge-gold">READ-ONLY ACCESS</span>
+          <button
+            className="btn btn-gold btn-sm"
+            onClick={() => {
+              setActiveTab('enroll');
+              loadAvailableSubjects();
+            }}
+          >
+            + Enroll New Subject
+          </button>
         </div>
       </div>
 
@@ -243,6 +341,7 @@ export default function StudentHome() {
         {[
           { id: 'overview',  label: '📊 Overview & Biometrics', count: null },
           { id: 'subjects',  label: '📚 Subject Attendance',    count: summary.length },
+          { id: 'enroll',    label: '📝 Enroll Subjects',       count: availableSubjects.filter(s => !s.is_enrolled).length },
           { id: 'timetable', label: '🗓 Class Timetable',       count: timetable.length },
           { id: 'faculty',   label: '👨‍🏫 My Teachers',          count: facultyList.length },
           { id: 'history',   label: '📋 Attendance History',   count: history.length },
@@ -250,7 +349,10 @@ export default function StudentHome() {
           <button
             key={tab.id}
             className={`btn ${activeTab === tab.id ? 'btn-gold' : 'btn-ghost'} btn-sm`}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => {
+              setActiveTab(tab.id);
+              if (tab.id === 'enroll') loadAvailableSubjects();
+            }}
           >
             {tab.label} {tab.count !== null && `(${tab.count})`}
           </button>
@@ -439,7 +541,18 @@ export default function StudentHome() {
         <div className="card-elevated" style={{ marginBottom: 24 }}>
           <div className="page-header" style={{ marginBottom: 16 }}>
             <h3 style={{ fontSize: 16, fontWeight: 800 }}>📊 Subject-Wise Attendance Breakdown</h3>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Required: 75% per subject</span>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Required: 75% per subject</span>
+              <button
+                className="btn btn-gold btn-sm"
+                onClick={() => {
+                  setActiveTab('enroll');
+                  loadAvailableSubjects();
+                }}
+              >
+                + Enroll New Subject
+              </button>
+            </div>
           </div>
 
           {loading ? (
@@ -450,7 +563,17 @@ export default function StudentHome() {
             <div className="empty-state">
               <div className="empty-icon">📚</div>
               <h4>No enrolled subjects found</h4>
-              <p>You will see your subject attendance breakdown once courses are assigned.</p>
+              <p>You haven't enrolled in any subjects yet. Enroll with a subject code or choose from your course catalog.</p>
+              <button
+                className="btn btn-gold btn-sm"
+                style={{ marginTop: 12 }}
+                onClick={() => {
+                  setActiveTab('enroll');
+                  loadAvailableSubjects();
+                }}
+              >
+                + Browse & Enroll Subjects
+              </button>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -482,6 +605,182 @@ export default function StudentHome() {
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── TAB: ENROLL SUBJECTS ── */}
+      {activeTab === 'enroll' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24, marginBottom: 24 }}>
+          {/* Quick Code / Course Enrollment Box */}
+          <div className="card-elevated" style={{ border: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+              <span style={{ fontSize: 24 }}>⚡</span>
+              <div>
+                <h3 style={{ fontSize: 17, fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+                  Quick Subject or Course Enrollment
+                </h3>
+                <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '2px 0 0' }}>
+                  Enter a Subject Code (e.g. <code>CS101</code>, <code>AI202</code>) or Course Code (e.g. <code>B.TECH</code>) provided by your instructor or department.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleEnrollByCode} style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 14 }}>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Enter Subject Code or Course Code (e.g. CS101, B.TECH)..."
+                value={codeQuery}
+                onChange={(e) => setCodeQuery(e.target.value)}
+                style={{ flex: 1, minWidth: 260 }}
+              />
+              <button
+                type="submit"
+                className="btn btn-gold"
+                disabled={codeLoading || !codeQuery.trim()}
+              >
+                {codeLoading ? 'Enrolling...' : '⚡ Enroll with Code'}
+              </button>
+            </form>
+
+            {codeMsg && (
+              <div className="alert alert-success" style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>✅</span>
+                <span>{codeMsg}</span>
+              </div>
+            )}
+            {codeError && (
+              <div className="alert alert-danger" style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>⚠️</span>
+                <span>{codeError}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Available Subjects Catalog */}
+          <div className="card-elevated">
+            <div className="page-header" style={{ marginBottom: 16 }}>
+              <div>
+                <h3 style={{ fontSize: 17, fontWeight: 800, margin: 0 }}>
+                  📚 Available Institutional Subjects Catalog
+                </h3>
+                <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '2px 0 0' }}>
+                  Browse active subjects in your department and course. Click to enroll instantly.
+                </p>
+              </div>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="🔍 Search available subjects..."
+                value={catalogSearch}
+                onChange={(e) => setCatalogSearch(e.target.value)}
+                style={{ maxWidth: 280 }}
+              />
+            </div>
+
+            {actionSuccess && (
+              <div className="alert alert-success" style={{ marginBottom: 16 }}>
+                ✅ {actionSuccess}
+              </div>
+            )}
+            {actionError && (
+              <div className="alert alert-danger" style={{ marginBottom: 16 }}>
+                ⚠️ {actionError}
+              </div>
+            )}
+
+            {availableLoading ? (
+              <div className="grid-3">
+                {[1, 2, 3].map(i => <div key={i} className="card skeleton" style={{ height: 160 }} />)}
+              </div>
+            ) : availableSubjects.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon">📖</div>
+                <h4>No institutional subjects available</h4>
+                <p>Subjects will appear here once registered by your department.</p>
+              </div>
+            ) : (
+              <div className="grid-3">
+                {availableSubjects
+                  .filter(s =>
+                    !catalogSearch ||
+                    s.name?.toLowerCase().includes(catalogSearch.toLowerCase()) ||
+                    s.code?.toLowerCase().includes(catalogSearch.toLowerCase()) ||
+                    s.course_name?.toLowerCase().includes(catalogSearch.toLowerCase()) ||
+                    s.faculty_name?.toLowerCase().includes(catalogSearch.toLowerCase())
+                  )
+                  .map(sub => {
+                    const isEnrolled = sub.is_enrolled;
+                    const isProcessing = enrollingId === sub.id;
+                    return (
+                      <div
+                        key={sub.id}
+                        className="card"
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 12,
+                          border: isEnrolled ? '1px solid var(--border)' : '1px solid var(--border-light)',
+                          background: isEnrolled ? 'var(--gold-subtle)' : 'var(--bg-card)',
+                          position: 'relative'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div>
+                            <span className="badge badge-gold" style={{ marginBottom: 6 }}>
+                              {sub.code}
+                            </span>
+                            <h3 style={{ fontSize: 17, color: 'var(--text-primary)', marginTop: 4 }}>
+                              {sub.name}
+                            </h3>
+                          </div>
+                          <span className="badge badge-info">{sub.credits} Credits</span>
+                        </div>
+
+                        <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                          <div>📚 {sub.course_name || 'All Courses'}</div>
+                          {sub.semester_name && <div>📅 {sub.semester_name}</div>}
+                          <div style={{ marginTop: 4, color: 'var(--text-muted)', fontSize: 12 }}>
+                            👩‍🏫 {sub.faculty_name ? `Prof. ${sub.faculty_name}` : 'Faculty Pending'}
+                          </div>
+                        </div>
+
+                        <div className="divider" style={{ margin: '4px 0' }} />
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span className={`badge ${isEnrolled ? 'badge-success' : 'badge-muted'}`}>
+                            {isEnrolled ? '✅ Enrolled' : 'Not Enrolled'}
+                          </span>
+
+                          {isEnrolled ? (
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => handleUnenrollSubject(sub.id)}
+                              disabled={isProcessing}
+                              style={{ color: 'var(--danger)', fontSize: 12, padding: '4px 10px' }}
+                              title="Drop Subject"
+                            >
+                              {isProcessing ? 'Dropping...' : '✕ Drop'}
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="btn btn-gold btn-sm"
+                              onClick={() => handleEnrollSubject(sub.id)}
+                              disabled={isProcessing}
+                              style={{ fontSize: 12, padding: '5px 14px' }}
+                            >
+                              {isProcessing ? 'Enrolling...' : '+ Enroll'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

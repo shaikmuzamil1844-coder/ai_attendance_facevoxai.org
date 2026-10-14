@@ -15,6 +15,7 @@ import SubjectsPage from './pages/SubjectsPage.jsx';
 import AnalyticsPage from './pages/AnalyticsPage.jsx';
 import TakeAttendancePage from './pages/TakeAttendancePage.jsx';
 import TimetablePage from './pages/TimetablePage.jsx';
+import ThemesPage from './pages/ThemesPage.jsx';
 import Shell from './components/Shell.jsx';
 
 function Guard({ roles, children }) {
@@ -89,7 +90,13 @@ export default function App() {
         <Route path="/student/history" element={<Guard roles={['student']}><StudentHome /></Guard>} />
         <Route path="/student/enroll" element={<Guard roles={['student']}><StudentHome /></Guard>} />
         <Route path="/student/profile" element={<Guard roles={['student']}><StudentHome /></Guard>} />
+
+        {/* Themes & Appearance Settings */}
+        <Route path="/themes" element={<ThemesPage />} />
+        <Route path="/settings/themes" element={<ThemesPage />} />
       </Route>
+      {/* Standalone Themes Preview / Route */}
+      <Route path="/themes-preview" element={<ThemesPage />} />
     </Routes>
   );
 }
