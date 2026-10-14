@@ -20,18 +20,26 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Default fallback departments and courses to ensure registration is never blocked
+  const DEFAULT_DEPTS = [
+    { id: '59086344-2f32-4402-aec6-c690c8267824', code: 'CSE', name: 'Computer Science & Engineering' },
+  ];
+  const DEFAULT_COURSES = [
+    { id: '683f31d3-7ed0-4c7c-aee8-5e47cad62792', department_id: '59086344-2f32-4402-aec6-c690c8267824', code: 'B.TECH', name: 'Bachelor of Technology' },
+  ];
+
   // Student registration form state
   const [regForm, setRegForm] = useState({
     rollNumber: '',
     name: '',
     email: '',
     password: '',
-    departmentId: '',
-    courseId: '',
+    departmentId: DEFAULT_DEPTS[0].id,
+    courseId: DEFAULT_COURSES[0].id,
     phone: '',
   });
-  const [departments, setDepartments] = useState([]);
-  const [courses, setCourses] = useState([]);
+  const [departments, setDepartments] = useState(DEFAULT_DEPTS);
+  const [courses, setCourses] = useState(DEFAULT_COURSES);
   const [regLoading, setRegLoading] = useState(false);
   const [regSuccess, setRegSuccess] = useState('');
 
@@ -40,7 +48,7 @@ export default function LoginPage() {
     name: '',
     email: '',
     password: '',
-    departmentId: '',
+    departmentId: DEFAULT_DEPTS[0].id,
     designation: 'Assistant Professor',
     employeeCode: '',
     phone: '',
@@ -52,19 +60,21 @@ export default function LoginPage() {
   useEffect(() => {
     api.get('/auth/meta')
       .then(res => {
-        setDepartments(res.data.departments || []);
-        setCourses(res.data.courses || []);
         if (res.data.departments?.length > 0) {
+          setDepartments(res.data.departments);
           const firstDeptId = res.data.departments[0].id;
           setRegForm(p => ({
             ...p,
-            departmentId: firstDeptId,
-            courseId: res.data.courses[0]?.id || '',
+            departmentId: p.departmentId || firstDeptId,
+            courseId: p.courseId || res.data.courses?.[0]?.id || '',
           }));
           setFacultyRegForm(p => ({
             ...p,
-            departmentId: firstDeptId,
+            departmentId: p.departmentId || firstDeptId,
           }));
+        }
+        if (res.data.courses?.length > 0) {
+          setCourses(res.data.courses);
         }
       })
       .catch(() => {});
