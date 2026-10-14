@@ -1,0 +1,46 @@
+services:
+  # ─── FaceVoxAI Node.js Backend API ───────────────────────────────────────────
+  - type: web
+    name: facevoxai-backend
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: production-version/backend
+    buildCommand: npm ci --only=production
+    startCommand: node src/index.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        value: postgresql://postgres.orpzixsprgpaijpnweoi:FaceVoxAI%402025!@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres
+      - key: JWT_SECRET
+        value: facevoxai_prod_jwt_secret_change_this_to_random_64_chars_minimum_required
+      - key: JWT_REFRESH_SECRET
+        value: facevoxai_prod_refresh_secret_change_this_to_another_random_64_chars
+      - key: JWT_EXPIRES_IN
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+      - key: FRONTEND_ORIGIN
+        value: "*"
+      - key: INTERNAL_API_SECRET
+        value: facevoxai_internal_ai_service_secret_key_2025
+      - key: RATE_LIMIT_WINDOW_MS
+        value: 60000
+      - key: RATE_LIMIT_MAX
+        value: 200
+
+  # ─── FaceVoxAI Python AI Microservice (Docker) ──────────────────────────────
+  - type: web
+    name: facevoxai-ai-service
+    runtime: docker
+    plan: free
+    region: oregon
+    rootDir: production-version/ai-service
+    dockerfilePath: production-version/ai-service/Dockerfile
+    envVars:
+      - key: DATABASE_URL
+        value: postgresql://postgres.orpzixsprgpaijpnweoi:FaceVoxAI%402025!@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres
+      - key: INTERNAL_API_SECRET
+        value: facevoxai_internal_ai_service_secret_key_2025
