@@ -1,8 +1,8 @@
-// pages/FacultyHome.jsx — Faculty & Teacher Dashboard
+// pages/FacultyHome.jsx — Revamped Faculty Dashboard with Dedicated Feature Navigator
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { api } from '../services/client';
-import { useNavigate } from 'react-router-dom';
 
 function StatCard({ icon, label, value, sub, color = 'var(--gold)' }) {
   return (
@@ -24,14 +24,6 @@ export default function FacultyHome() {
   const [students, setStudents] = useState([]);
   const [atRisk, setAtRisk] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  // Subject self-assignment modal state for new faculty members
-  const [showAssignModal, setShowAssignModal] = useState(false);
-  const [allSubjects, setAllSubjects] = useState([]);
-  const [selectedSubjectId, setSelectedSubjectId] = useState('');
-  const [sectionCode, setSectionCode] = useState('A');
-  const [assignLoading, setAssignLoading] = useState(false);
-  const [assignError, setAssignError] = useState('');
 
   const loadData = async () => {
     try {
@@ -59,44 +51,9 @@ export default function FacultyHome() {
     loadData();
   }, []);
 
-  const handleOpenAssignModal = async () => {
-    setAssignError('');
-    setShowAssignModal(true);
-    try {
-      const res = await api.get('/subjects?all=true');
-      const list = Array.isArray(res.data) ? res.data : [];
-      setAllSubjects(list);
-      if (list.length > 0) {
-        setSelectedSubjectId(list[0].id);
-      }
-    } catch (err) {
-      setAssignError('Failed to load catalog subjects.');
-    }
-  };
-
-  const handleAssignSubject = async (e) => {
-    e.preventDefault();
-    if (!selectedSubjectId) return;
-    setAssignLoading(true);
-    setAssignError('');
-    try {
-      await api.post(`/subjects/${selectedSubjectId}/assign-faculty`, {
-        facultyId: user?.facultyId,
-        section: sectionCode.trim() || 'A',
-      });
-      setShowAssignModal(false);
-      loadData();
-    } catch (err) {
-      setAssignError(err.response?.data?.error || 'Failed to assign subject.');
-    } finally {
-      setAssignLoading(false);
-    }
-  };
-
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
-  // Metrics calculation
   const totalStudents = students.length;
   const faceEnrolledCount = students.filter(s => s.face_enrolled).length;
   const voiceEnrolledCount = students.filter(s => s.voice_enrolled).length;
@@ -109,6 +66,74 @@ export default function FacultyHome() {
     return d === today;
   }).length;
 
+  const FEATURE_TILES = [
+    {
+      id: 'take_attendance',
+      title: 'Take Live Attendance',
+      subtitle: 'Multi-modal webcam & voice capture',
+      icon: '📸',
+      to: '/faculty/take',
+      badge: 'Live',
+    },
+    {
+      id: 'sessions',
+      title: 'Class Sessions',
+      subtitle: 'Manage active, live & past sessions',
+      icon: '📋',
+      to: '/faculty/sessions',
+      badge: `${totalSessions} Sessions`,
+    },
+    {
+      id: 'history',
+      title: 'Attendance History & Logs',
+      subtitle: 'Session-by-session student ledger',
+      icon: '🕐',
+      to: '/faculty/history',
+      badge: 'Audit Log',
+    },
+    {
+      id: 'subjects',
+      title: 'My Assigned Subjects',
+      subtitle: 'View curriculum & claim classes',
+      icon: '📖',
+      to: '/faculty/subjects',
+      badge: `${subjects.length} Subjects`,
+    },
+    {
+      id: 'students',
+      title: 'My Enrolled Students',
+      subtitle: 'Student directory & biometric status',
+      icon: '🎓',
+      to: '/faculty/students',
+      badge: `${totalStudents} Students`,
+    },
+    {
+      id: 'timetable',
+      title: 'My Timetable',
+      subtitle: 'Weekly teaching schedule & rooms',
+      icon: '🗓️',
+      to: '/faculty/timetable',
+      badge: 'Schedule',
+    },
+    {
+      id: 'analytics',
+      title: 'Teaching Analytics',
+      subtitle: 'Attendance rates & at-risk watchlists',
+      icon: '📊',
+      to: '/faculty/analytics',
+      badge: `${atRisk.length} At-Risk`,
+      badgeColor: atRisk.length > 0 ? 'badge-danger' : 'badge-success',
+    },
+    {
+      id: 'profile',
+      title: 'My Profile & Credentials',
+      subtitle: 'Employee profile, email & security',
+      icon: '👤',
+      to: '/faculty/profile',
+      badge: 'Profile',
+    },
+  ];
+
   return (
     <div>
       {/* Header */}
@@ -118,11 +143,11 @@ export default function FacultyHome() {
             👩‍🏫 Faculty Teaching Portal
           </div>
           <h1 className="page-title">{greeting}, {user?.fullName || 'Professor'} 👋</h1>
-          <p className="page-subtitle">Manage your assigned classes, take biometric attendance, and inspect student progress.</p>
+          <p className="page-subtitle">Track teaching sessions, conduct live multi-modal attendance, and access dedicated portal screens.</p>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <button className="btn btn-outline" onClick={() => navigate('/faculty/timetable')}>
-            🗓 My Timetable
+          <button className="btn btn-outline" onClick={() => navigate('/faculty/profile')}>
+            👤 My Profile
           </button>
           <button className="btn btn-gold btn-lg" onClick={() => navigate('/faculty/take')}>
             📸 Start Live Attendance
@@ -150,18 +175,98 @@ export default function FacultyHome() {
         />
         <StatCard
           icon="📋"
-          label="Sessions Conducted"
-          value={loading ? null : totalSessions}
-          sub={`${sessionsToday} session(s) today`}
+          label="Sessions Today"
+          value={loading ? null : sessionsToday}
+          sub={`${totalSessions} total logged`}
           color="var(--success)"
         />
         <StatCard
           icon="⚠️"
           label="At-Risk (<75%)"
           value={loading ? null : atRisk.length}
-          sub="Students needing attention"
+          sub="Students needing attendance"
           color={atRisk.length > 0 ? 'var(--danger)' : 'var(--success)'}
         />
+      </div>
+
+      {/* ─── DEDICATED FEATURE PORTALS (MATCHING REFERENCE TILES) ─── */}
+      <div style={{ marginBottom: 30 }}>
+        <div style={{ marginBottom: 16 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+            📱 Teaching Feature Portals &amp; Dedicated Screens
+          </h2>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '2px 0 0' }}>
+            Click any feature below to open its dedicated management screen.
+          </p>
+        </div>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+          gap: 16,
+        }}>
+          {FEATURE_TILES.map(tile => (
+            <div
+              key={tile.id}
+              onClick={() => navigate(tile.to)}
+              style={{
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border-light)',
+                borderRadius: 'var(--radius-md)',
+                padding: '18px 20px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 16,
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--gold)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border-light)';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              {/* Rounded Green/Gold Icon badge */}
+              <div style={{
+                width: 48,
+                height: 48,
+                borderRadius: 12,
+                background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(212, 160, 23, 0.2))',
+                border: '1.5px solid var(--gold)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 22,
+                flexShrink: 0,
+              }}>
+                {tile.icon}
+              </div>
+
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontWeight: 700,
+                  fontSize: 15,
+                  color: 'var(--text-primary)',
+                  fontFamily: 'Outfit, sans-serif',
+                }}>
+                  {tile.title}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {tile.subtitle}
+                </div>
+              </div>
+
+              <div style={{ fontSize: 16, color: 'var(--gold)', opacity: 0.7 }}>
+                ›
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Biometric Readiness Summary Bar */}
@@ -172,7 +277,7 @@ export default function FacultyHome() {
               ⚡ Class Biometric Readiness
             </h3>
             <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-              Students enrolled in your subjects with facial geometry &amp; voice signatures active.
+              Student cohort enrolled in your subjects with active facial geometry &amp; voice signatures.
             </div>
           </div>
           <button className="btn btn-outline btn-sm" onClick={() => navigate('/faculty/students')}>
@@ -225,137 +330,6 @@ export default function FacultyHome() {
         </div>
       </div>
 
-      {/* Assigned Subjects Table */}
-      <div className="card-elevated" style={{ marginBottom: 24 }}>
-        <div className="page-header" style={{ marginBottom: 16 }}>
-          <div>
-            <h3 style={{ fontSize: 16, fontWeight: 700 }}>📖 My Assigned Subjects &amp; Classes</h3>
-            <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
-              You have permission to take and mark attendance for these assigned subjects.
-            </p>
-          </div>
-          <button className="btn btn-outline btn-sm" onClick={handleOpenAssignModal}>
-            + Add / Claim Subject
-          </button>
-        </div>
-
-        {loading ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {[1, 2].map(i => <div key={i} className="skeleton" style={{ height: 50 }} />)}
-          </div>
-        ) : subjects.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">📖</div>
-            <h4>No subjects assigned yet</h4>
-            <p>Your academic coordinator can assign subjects, or you can self-claim a subject right now.</p>
-            <button className="btn btn-gold btn-sm" onClick={handleOpenAssignModal} style={{ marginTop: 12 }}>
-              + Assign Subject to My Profile
-            </button>
-          </div>
-        ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Subject Code</th>
-                  <th>Subject Name</th>
-                  <th>Course / Program</th>
-                  <th>Semester</th>
-                  <th>Enrolled Students</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {subjects.map(s => (
-                  <tr key={s.id}>
-                    <td>
-                      <code style={{ color: 'var(--gold)', fontWeight: 700 }}>{s.code}</code>
-                    </td>
-                    <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{s.name}</td>
-                    <td>{s.course_name || '—'}</td>
-                    <td>{s.semester_name || 'Active'}</td>
-                    <td>
-                      <span className="badge badge-gold">
-                        {s.student_count ?? totalStudents} Student(s)
-                      </span>
-                    </td>
-                    <td>
-                      <button
-                        className="btn btn-gold btn-sm"
-                        onClick={() => navigate('/faculty/take')}
-                        style={{ fontSize: 12, padding: '4px 12px' }}
-                      >
-                        📸 Take Attendance
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Recent Attendance Sessions */}
-      <div className="card-elevated" style={{ marginBottom: 24 }}>
-        <div className="page-header" style={{ marginBottom: 16 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700 }}>📋 Recent Class Sessions</h3>
-          <button className="btn btn-outline btn-sm" onClick={() => navigate('/faculty/take')}>
-            Launch Live Session
-          </button>
-        </div>
-
-        {loading ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {[1, 2, 3].map(i => <div key={i} className="skeleton" style={{ height: 50 }} />)}
-          </div>
-        ) : sessions.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">📋</div>
-            <h4>No attendance sessions logged yet</h4>
-            <p>Start your first biometric session using the button above.</p>
-          </div>
-        ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Subject</th>
-                  <th>Session Date</th>
-                  <th>Status</th>
-                  <th>Present / Total</th>
-                  <th>Attendance %</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sessions.map(s => {
-                  const present = parseInt(s.present_count ?? 0, 10);
-                  const total = parseInt(s.total_marked ?? s.total_enrolled ?? present, 10);
-                  const pct = total > 0 ? Math.round((present / total) * 100) : 0;
-                  return (
-                    <tr key={s.id}>
-                      <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{s.subject_name}</td>
-                      <td>{s.session_date ? new Date(s.session_date).toLocaleDateString() : '—'}</td>
-                      <td>
-                        <span className={`badge badge-${s.status === 'live' ? 'success' : s.status === 'completed' ? 'muted' : 'warn'}`}>
-                          {s.status === 'live' && '🔴 '}{s.status}
-                        </span>
-                      </td>
-                      <td>{present} / {total}</td>
-                      <td>
-                        <span style={{ fontWeight: 700, color: pct >= 75 ? 'var(--success)' : 'var(--danger)' }}>
-                          {pct}%
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
       {/* Quick Launch Banner */}
       <div style={{
         background: 'linear-gradient(135deg, rgba(212,160,23,0.12), rgba(212,160,23,0.03))',
@@ -380,81 +354,6 @@ export default function FacultyHome() {
           📸 Open Live Scanner
         </button>
       </div>
-
-      {/* Subject Assignment Modal for Faculty */}
-      {showAssignModal && (
-        <div className="modal-backdrop">
-          <div className="modal" style={{ maxWidth: 480 }}>
-            <div className="modal-header">
-              <h3 className="modal-title">📖 Assign Subject to My Teaching Schedule</h3>
-              <button className="btn-icon" onClick={() => setShowAssignModal(false)}>✕</button>
-            </div>
-
-            {assignError && (
-              <div className="alert alert-danger" style={{ marginBottom: 16 }}>
-                ⚠️ {assignError}
-              </div>
-            )}
-
-            <form onSubmit={handleAssignSubject}>
-              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>
-                  Select an academic subject to assign to your teaching portfolio so you can conduct attendance and monitor student progress.
-                </p>
-
-                <div className="form-group">
-                  <label className="form-label">Select Subject *</label>
-                  <select
-                    className="form-input"
-                    value={selectedSubjectId}
-                    onChange={e => setSelectedSubjectId(e.target.value)}
-                    required
-                  >
-                    {allSubjects.length === 0 ? (
-                      <option value="">No subjects found</option>
-                    ) : (
-                      allSubjects.map(sub => (
-                        <option key={sub.id} value={sub.id}>
-                          {sub.code} — {sub.name} ({sub.course_name || 'General'})
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Class Section *</label>
-                  <input
-                    className="form-input"
-                    type="text"
-                    placeholder="e.g. A or Section-1"
-                    value={sectionCode}
-                    onChange={e => setSectionCode(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={() => setShowAssignModal(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-gold"
-                  disabled={assignLoading || allSubjects.length === 0}
-                >
-                  {assignLoading ? 'Assigning…' : '✅ Confirm Assignment'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

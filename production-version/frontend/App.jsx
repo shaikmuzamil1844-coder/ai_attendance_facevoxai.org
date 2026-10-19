@@ -4,7 +4,17 @@ import LoginPage from './pages/LoginPage.jsx';
 import AdminHome from './pages/AdminHome.jsx';
 import HodHome from './pages/HodHome.jsx';
 import FacultyHome from './pages/FacultyHome.jsx';
+import FacultySessionsPage from './pages/FacultySessionsPage.jsx';
+import FacultyHistoryPage from './pages/FacultyHistoryPage.jsx';
+import FacultyProfilePage from './pages/FacultyProfilePage.jsx';
+import AdminProfilePage from './pages/AdminProfilePage.jsx';
+import ReportsPage from './pages/ReportsPage.jsx';
 import StudentHome from './pages/StudentHome.jsx';
+import StudentAttendancePage from './pages/StudentAttendancePage.jsx';
+import StudentEnrollPage from './pages/StudentEnrollPage.jsx';
+import StudentHistoryPage from './pages/StudentHistoryPage.jsx';
+import StudentFacultyPage from './pages/StudentFacultyPage.jsx';
+import StudentProfilePage from './pages/StudentProfilePage.jsx';
 import DepartmentsPage from './pages/DepartmentsPage.jsx';
 import CoursesPage from './pages/CoursesPage.jsx';
 import SemestersPage from './pages/SemestersPage.jsx';
@@ -62,7 +72,8 @@ export default function App() {
         <Route path="/admin/subjects" element={<Guard roles={['admin']}><SubjectsPage /></Guard>} />
         <Route path="/admin/timetable" element={<Guard roles={['admin']}><TimetablePage /></Guard>} />
         <Route path="/admin/analytics" element={<Guard roles={['admin']}><AnalyticsPage /></Guard>} />
-        <Route path="/admin/reports" element={<Guard roles={['admin']}><AnalyticsPage /></Guard>} />
+        <Route path="/admin/reports" element={<Guard roles={['admin']}><ReportsPage /></Guard>} />
+        <Route path="/admin/profile" element={<Guard roles={['admin']}><AdminProfilePage /></Guard>} />
 
         {/* HOD Routes */}
         <Route path="/hod" element={<Guard roles={['hod']}><HodHome /></Guard>} />
@@ -73,23 +84,25 @@ export default function App() {
         <Route path="/hod/analytics" element={<Guard roles={['hod']}><AnalyticsPage /></Guard>} />
         <Route path="/hod/at-risk" element={<Guard roles={['hod']}><AnalyticsPage /></Guard>} />
 
-        {/* Faculty Routes */}
+        {/* Faculty Routes — Dedicated Clean Feature Screens */}
         <Route path="/faculty" element={<Guard roles={['faculty']}><FacultyHome /></Guard>} />
         <Route path="/faculty/take" element={<Guard roles={['faculty']}><TakeAttendancePage /></Guard>} />
-        <Route path="/faculty/sessions" element={<Guard roles={['faculty']}><FacultyHome /></Guard>} />
-        <Route path="/faculty/history" element={<Guard roles={['faculty']}><FacultyHome /></Guard>} />
+        <Route path="/faculty/sessions" element={<Guard roles={['faculty']}><FacultySessionsPage /></Guard>} />
+        <Route path="/faculty/history" element={<Guard roles={['faculty']}><FacultyHistoryPage /></Guard>} />
         <Route path="/faculty/subjects" element={<Guard roles={['faculty']}><SubjectsPage /></Guard>} />
         <Route path="/faculty/students" element={<Guard roles={['faculty']}><StudentsPage /></Guard>} />
         <Route path="/faculty/timetable" element={<Guard roles={['faculty']}><TimetablePage /></Guard>} />
         <Route path="/faculty/analytics" element={<Guard roles={['faculty']}><AnalyticsPage /></Guard>} />
+        <Route path="/faculty/profile" element={<Guard roles={['faculty']}><FacultyProfilePage /></Guard>} />
 
-        {/* Student Routes */}
+        {/* Student Routes — Dedicated Clean Feature Screens */}
         <Route path="/student" element={<Guard roles={['student']}><StudentHome /></Guard>} />
-        <Route path="/student/attendance" element={<Guard roles={['student']}><StudentHome /></Guard>} />
+        <Route path="/student/attendance" element={<Guard roles={['student']}><StudentAttendancePage /></Guard>} />
         <Route path="/student/timetable" element={<Guard roles={['student']}><TimetablePage /></Guard>} />
-        <Route path="/student/history" element={<Guard roles={['student']}><StudentHome /></Guard>} />
-        <Route path="/student/enroll" element={<Guard roles={['student']}><StudentHome /></Guard>} />
-        <Route path="/student/profile" element={<Guard roles={['student']}><StudentHome /></Guard>} />
+        <Route path="/student/history" element={<Guard roles={['student']}><StudentHistoryPage /></Guard>} />
+        <Route path="/student/enroll" element={<Guard roles={['student']}><StudentEnrollPage /></Guard>} />
+        <Route path="/student/faculty" element={<Guard roles={['student']}><StudentFacultyPage /></Guard>} />
+        <Route path="/student/profile" element={<Guard roles={['student']}><StudentProfilePage /></Guard>} />
 
         {/* Themes & Appearance Settings */}
         <Route path="/themes" element={<ThemesPage />} />

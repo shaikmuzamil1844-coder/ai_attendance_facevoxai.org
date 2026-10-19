@@ -30,6 +30,9 @@ const NAV_BY_ROLE = {
       { to: '/admin/analytics',   icon: '📊', iconName: 'analytics', label: 'Analytics' },
       { to: '/admin/reports',     icon: '📄', iconName: 'reports', label: 'Reports' },
     ]},
+    { section: 'Identity & Account', items: [
+      { to: '/admin/profile',     icon: '👤', iconName: 'profile', label: 'My Profile' },
+    ]},
     SETTINGS_SECTION,
   ],
   hod: [
@@ -61,6 +64,9 @@ const NAV_BY_ROLE = {
     { section: 'Reports', items: [
       { to: '/faculty/analytics',icon: '📊', iconName: 'analytics', label: 'Analytics' },
     ]},
+    { section: 'Identity & Account', items: [
+      { to: '/faculty/profile',  icon: '👤', iconName: 'profile', label: 'My Profile' },
+    ]},
     SETTINGS_SECTION,
   ],
   student: [
@@ -70,8 +76,11 @@ const NAV_BY_ROLE = {
       { to: '/student/timetable',  icon: '🗓', iconName: 'timetable', label: 'My Timetable' },
       { to: '/student/history',    icon: '🕐', iconName: 'history', label: 'Attendance History' },
     ]},
-    { section: 'Enrollment & Profile', items: [
+    { section: 'Enrollment & Faculty', items: [
       { to: '/student/enroll',     icon: '📝', iconName: 'subjects', label: 'Enroll Subjects' },
+      { to: '/student/faculty',    icon: '👨‍🏫', iconName: 'faculty', label: 'My Teachers' },
+    ]},
+    { section: 'Identity & Account', items: [
       { to: '/student/profile',    icon: '👤', iconName: 'profile', label: 'My Profile' },
     ]},
     SETTINGS_SECTION,
